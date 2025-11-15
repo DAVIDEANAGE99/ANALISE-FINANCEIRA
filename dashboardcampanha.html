@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Acompanhamento FPP</title>
+    
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; background-color: #f4f7f6; color: #333; }
+        
+        /* Estilos do Login */
+        #login-container { display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .login-box { background: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); width: 100%; max-width: 400px; text-align: center; }
+        .login-box input, .login-box button { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .login-box button { background-color: #007bff; color: white; border: none; cursor: pointer; }
+        .status-message { margin-top: 20px; font-weight: bold; color: red; }
+
+        /* Estilos do Dashboard */
+        #dashboard-container { padding: 20px; display: none; /* Escondido por padrão, JavaScript irá alterar */ }
+        h1 { color: #007bff; border-bottom: 2px solid #007bff; padding-bottom: 10px; margin-bottom: 20px; }
+        /* Ajuste o grid para acomodar os novos cards */
+        #metricas-dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .card-metrica { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); }
+        .valor-metrica { font-size: 2.5em; font-weight: bold; color: #007bff; }
+        #form-transacao { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); margin-bottom: 30px; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; }
+        #form-transacao button { padding: 10px 15px; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; align-self: end; }
+        .tabela-container { overflow-x: auto; background-color: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #007bff; color: white; }
+        /* Novo estilo para o botão de editar */
+        .btn-editar { background-color: #ffc107; color: #333; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-right: 5px; }
+        .btn-deletar { background-color: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+        #logout-btn-header { float: right; background-color: #f44336; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; }
+        .btn-config { background-color: #007bff; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; margin-left: 5px; font-size: 0.8em; }
+    </style>
+</head>
+<body>
+
+    <div id="login-container">
+        <div class="login-box">
+            <h2>🔐 Acesso Restrito</h2>
+            <input type="email" id="email" placeholder="E-mail" required>
+            <input type="password" id="password" placeholder="Senha" required>
+            <button onclick="login()">Acessar Dashboard</button>
+            <p id="status-message" class="status-message">Insira suas credenciais.</p>
+        </div>
+    </div>
+
+    <div id="dashboard-container">
+        <button id="logout-btn-header" onclick="logout()">🚪 Sair</button>
+
+        <h1>Acompanhamento de Campanha FPP</h1>
+        
+        <p id="aviso-feriados" style="color: #856404; background-color: #fff3cd; border: 1px solid #ffeeba; padding: 10px; border-radius: 5px; text-align: center; font-weight: bold; margin-bottom: 20px; display: none;">
+            ⚠️ Lembrete Importante: A lista de Feriados Nacionais de 2026 precisa ser atualizada!
+        </p>
+        
+        <p id="status-conexao">🟡 Conectando ao Banco de Dados...</p>
+
+        <div id="metricas-dashboard">
+            <div class="card-metrica">
+                <h3>Total Geral Vendido</h3>
+                <span id="total-geral" class="valor-metrica">R$ 0,00</span>
+            </div>
+            <div class="card-metrica">
+                <h3>Total de Unidades Vendidas</h3>
+                <span id="total-unidades" class="valor-metrica">0</span>
+            </div>
+
+            <div class="card-metrica">
+                <h3>Dias Úteis Trabalhados
+                    <button class="btn-config" onclick="editarDataInicioCampanha()" title="Configurar Data de Início">⚙️</button>
+                </h3>
+                <span id="dias-uteis-campanha" class="valor-metrica">0</span>
+                <p style="font-size: 0.8em; margin-top: 10px;">Início: <span id="data-inicio-campanha">Não definida</span></p>
+            </div>
+
+            <div class="card-metrica">
+                <h3>Dias Úteis Restantes
+                    <button class="btn-config" onclick="editarDataFimCampanha()" title="Configurar Prazo Final">⚙️</button>
+                </h3>
+                <span id="dias-uteis-restantes" class="valor-metrica">0</span>
+                <p style="font-size: 0.8em; margin-top: 10px;">Prazo Final: <span id="data-fim-campanha">Não definida</span></p>
+            </div>
+
+            <div class="card-metrica">
+                <h3>Média de Unidades/Dia Útil</h3>
+                <span id="media-unidades-dia" class="valor-metrica">0,00</span>
+            </div>
+            
+            <div class="card-metrica">
+                <h3>Unidades/Dia Útil Restante (Meta)</h3>
+                <span id="unidades-por-dia-restante" class="valor-metrica">0,00</span>
+            </div>
+
+            <div class="card-metrica">
+                <h3>Meta de Unidades
+                    <button class="btn-editar-meta" onclick="editarMetaUnidades()" title="Editar Meta">✏️</button>
+                </h3>
+                <span id="meta-unidades" class="valor-metrica">100</span>
+            </div>
+            <div class="card-metrica">
+                <h3>Progresso da Meta</h3>
+                <div id="progresso-bar" style="background-color: #e9ecef; border-radius: 5px; height: 20px; margin-top: 10px; overflow: hidden;">
+                    <div id="barra-preenchida" style="height: 100%; width: 0%; background-color: #0dcaf0; transition: width 0.5s ease;"></div>
+                </div>
+                <p id="progresso-porcentagem" style="font-size: 0.9em; margin-top: 5px; color: #555;">0%</p>
+            </div>
+        </div>
+
+        <h2>Nova Transação</h2>
+        <form id="form-transacao">
+            <input type="date" id="data" required>
+            <input type="text" id="codigo" required placeholder="Código do Produto">
+            <input type="number" id="unidades" required min="1" value="1">
+            <input type="number" id="valor" required min="0.01" step="0.01" value="3.34" placeholder="Valor Unitário (R$)">
+            <button type="submit">Adicionar Venda</button>
+        </form>
+
+        <h2>Histórico de Transações</h2>
+        <div class="tabela-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Cód. Produto</th>
+                        <th>Unidades</th>
+                        <th>Valor Unitário</th>
+                        <th>Total da Venda</th>
+                        <th>Ação</th>
+                    </tr>
+                </thead>
+                <tbody id="tabela-corpo"></tbody>
+            </table>
+        </div>
+    </div> <script type="module">
+        // Importações Modulares do Firebase
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
+        // Adicionando 'getDocs' e 'updateDoc' para a nova funcionalidade de soma automática e edição
+        import { getFirestore, collection, doc, setDoc, query, where, orderBy, onSnapshot, addDoc, deleteDoc, getDoc, serverTimestamp, getDocs, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+
+        // ⚠️ 1. CONFIGURAÇÃO DO FIREBASE (SEUS DADOS INSERIDOS) ⚠️
+        const firebaseConfig = {
+            apiKey: "AIzaSyCfHpRYMfE29DI-IlZRwW1OB1K-k7ltOVA",
+            authDomain: "acompanhamento-de-campanha.firebaseapp.com",
+            projectId: "acompanhamento-de-campanha",
+            storageBucket: "acompanhamento-de-campanha.firebasestorage.app",
+            messagingSenderId: "423327353387",
+            appId: "1:423327353387:web:4e1920a72c5d6d9370b86e",
+            measurementId: "G-JX4DG7QH2K"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        
+        // Constantes do Firestore
+        const COLECAO_TRANSACOES = 'transacoesFPP';
+        const DOC_CONFIG = 'configuracaoGlobal'; 
+        const META_INICIAL = 100;
+        const DATA_INICIO_DEFAULT = new Date().toISOString().substring(0, 10); // Hoje (YYYY-MM-DD)
+        const DATA_FIM_DEFAULT = new Date(new Date().setDate(new Date().getDate() + 30)).toISOString().substring(0, 10); // Daqui a 30 dias (YYYY-MM-DD)
+
+        // Lista estática de feriados nacionais (Ano: 2025)
+        const FERIADOS = [
+            "2025-01-01", // Confraternização Universal
+            "2025-03-04", // Carnaval
+            "2025-03-05", // Quarta-feira de Cinzas
+            "2025-04-18", // Sexta-feira Santa
+            "2025-04-21", // Tiradentes
+            "2025-05-01", // Dia do Trabalho
+            "2025-06-19", // Corpus Christi
+            "2025-09-07", // Independência do Brasil
+            "2025-10-12", // Nossa Senhora Aparecida
+            "2025-11-02", // Finados
+            "2025-11-15", // Proclamação da República
+            "2025-11-20", // Conciencia negra
+            "2025-12-25", // Natal
+            // ⚠️ Adicione "2025-11-20" aqui, se for feriado na sua localidade.
+        ];
+
+        let dadosTransacoes = [];
+        let metaUnidades = META_INICIAL;
+        let dataInicioCampanha = DATA_INICIO_DEFAULT;
+        let dataFimCampanha = DATA_FIM_DEFAULT; // Variável para o prazo final (novo)
+        let unsubscribeListener = null;
+
+        // Referências do DOM
+        const loginContainer = document.getElementById('login-container');
+        const dashboardContainer = document.getElementById('dashboard-container');
+        const emailInput = document.getElementById("email");
+        const passwordInput = document.getElementById("password");
+        const statusMessage = document.getElementById("status-message");
+        const tabelaCorpo = document.getElementById('tabela-corpo');
+        const totalGeralElemento = document.getElementById('total-geral');
+        const totalUnidadesElemento = document.getElementById('total-unidades');
+        const mediaUnidadesDiaElemento = document.getElementById('media-unidades-dia'); 
+        const diasUteisCampanhaElemento = document.getElementById('dias-uteis-campanha'); 
+        const dataInicioCampanhaElemento = document.getElementById('data-inicio-campanha'); 
+        const diasUteisRestantesElemento = document.getElementById('dias-uteis-restantes'); // Novo
+        const dataFimCampanhaElemento = document.getElementById('data-fim-campanha'); // Novo
+        const unidadesPorDiaRestanteElemento = document.getElementById('unidades-por-dia-restante'); // Novo
+        const metaUnidadesElemento = document.getElementById('meta-unidades');
+        const barraPreenchidaElemento = document.getElementById('barra-preenchida');
+        const progressoPorcentagemElemento = document.getElementById('progresso-porcentagem');
+        const formTransacao = document.getElementById('form-transacao');
+        const inputData = document.getElementById('data');
+        const statusConexaoElemento = document.getElementById('status-conexao');
+        const avisoFeriadosElemento = document.getElementById('aviso-feriados'); // NOVO ELEMENTO
+        
+        // --- 2. FUNÇÕES DE AUTENTICAÇÃO E CONTROLE DE TELA ---
+
+        window.login = async function() {
+            const email = emailInput.value;
+            const password = passwordInput.value;
+            statusMessage.textContent = "Verificando credenciais...";
+            statusMessage.style.color = 'gray';
+
+            try {
+                // Tenta fazer o login
+                await signInWithEmailAndPassword(auth, email, password); 
+                statusMessage.textContent = "Login bem-sucedido. Acessando...";
+                statusMessage.style.color = 'green';
+            } catch (error) {
+                // Se falhar, exibe o erro
+                let msg = error.message;
+                if (error.code === 'auth/invalid-credential') {
+                    msg = 'Credenciais inválidas. Verifique e-mail e senha.';
+                }
+                statusMessage.textContent = `❌ Erro: ${msg}`;
+                statusMessage.style.color = 'red';
+            }
+        }
+
+        window.logout = async function() {
+            // Sai da sessão
+            await signOut(auth);
+        }
+        
+        // Alterna entre Login e Dashboard e inicia a carga de dados
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                // Logado: Mostra Dashboard
+                loginContainer.style.display = 'none';
+                dashboardContainer.style.display = 'block';
+                // Inicia a sincronização de dados APENAS uma vez após o login
+                if (!unsubscribeListener) { 
+                    carregarDados();
+                }
+            } else {
+                // Deslogado: Mostra Login
+                loginContainer.style.display = 'flex';
+                dashboardContainer.style.display = 'none';
+                
+                if (unsubscribeListener) { // Para o listener quando desloga
+                    unsubscribeListener();
+                    unsubscribeListener = null;
+                }
+            }
+        });
+
+        // --- 3. FUNÇÕES DE DADOS (FIRESTORE) ---
+
+        async function carregarDados() {
+            try {
+                const configRef = doc(db, COLECAO_TRANSACOES, DOC_CONFIG);
+                const configSnap = await getDoc(configRef);
+                
+                if (configSnap.exists()) {
+                    const config = configSnap.data();
+                    metaUnidades = config.metaUnidades || META_INICIAL;
+                    dataInicioCampanha = config.dataInicio || DATA_INICIO_DEFAULT; 
+                    dataFimCampanha = config.dataFim || DATA_FIM_DEFAULT; // Carrega a data de fim (novo)
+                } else {
+                    // Inicializa a meta, a data de início E DATA FIM se não existirem
+                    await setDoc(configRef, { 
+                        metaUnidades: META_INICIAL,
+                        dataInicio: DATA_INICIO_DEFAULT,
+                        dataFim: DATA_FIM_DEFAULT // Inicializa a data de fim (novo)
+                    });
+                    metaUnidades = META_INICIAL;
+                    dataInicioCampanha = DATA_INICIO_DEFAULT;
+                    dataFimCampanha = DATA_FIM_DEFAULT;
+                }
+                
+                // Listener de Transações em Tempo Real
+                const transacoesCollection = collection(db, COLECAO_TRANSACOES);
+                const q = query(
+                    transacoesCollection,
+                    where('tipo', '==', 'venda'),
+                    orderBy('data', 'desc'),
+                    orderBy('timestamp', 'desc')
+                );
+
+                unsubscribeListener = onSnapshot(q, (snapshot) => {
+                    statusConexaoElemento.textContent = '🟢 Conectado e Sincronizado.';
+                    
+                    dadosTransacoes = snapshot.docs.map(documento => ({
+                        id: documento.id,
+                        ...documento.data()
+                    }));
+                    
+                    inputData.valueAsDate = new Date();
+                    atualizarDashboard();
+                }, (error) => {
+                    console.error("Erro no listener do Firestore:", error);
+                    statusConexaoElemento.textContent = '🔴 Erro de Conexão.';
+                });
+
+            } catch (e) {
+                console.error("Erro fatal na inicialização:", e);
+                statusConexaoElemento.textContent = '🔴 ERRO FATAL.';
+            }
+        }
+        
+        window.adicionarTransacao = async function(evento) {
+            evento.preventDefault();
+            
+            const data = document.getElementById('data').value;
+            const codigo = document.getElementById('codigo').value.trim();
+            const unidades = parseInt(document.getElementById('unidades').value);
+            const valor = parseFloat(document.getElementById('valor').value); // Valor unitário
+
+            if (!data || !codigo || isNaN(unidades) || unidades <= 0 || isNaN(valor) || valor <= 0) {
+                console.error("Preencha todos os campos corretamente.");
+                return;
+            }
+            
+            // 1. Prepara a referência e a consulta
+            const transacoesCollection = collection(db, COLECAO_TRANSACOES);
+            
+            // Busca por transação existente com o mesmo código e data
+            const q = query(
+                transacoesCollection,
+                where('tipo', '==', 'venda'),
+                where('codigo', '==', codigo),
+                where('data', '==', data)
+            );
+
+            try {
+                const snapshot = await getDocs(q);
+                
+                if (!snapshot.empty) {
+                    // 2. Transação existente encontrada: Somar e Atualizar
+                    const docToUpdate = snapshot.docs[0];
+                    const docRef = doc(db, COLECAO_TRANSACOES, docToUpdate.id);
+                    const currentUnidades = docToUpdate.data().unidades;
+                    const novasUnidades = currentUnidades + unidades;
+                    
+                    await updateDoc(docRef, {
+                        unidades: novasUnidades,
+                        // Mantemos o valor unitário original, mas atualizamos o timestamp
+                        timestamp: serverTimestamp() 
+                    });
+                    
+                    console.log(`Transação existente (Código: ${codigo}, Data: ${data}) atualizada. Novas unidades: ${novasUnidades}.`);
+
+                } else {
+                    // 3. Transação não encontrada: Adicionar nova
+                    const novaTransacao = {
+                        tipo: 'venda',
+                        data: data,
+                        codigo: codigo,
+                        unidades: unidades,
+                        valor: valor, // Valor unitário
+                        timestamp: serverTimestamp() 
+                    };
+                    
+                    await addDoc(transacoesCollection, novaTransacao);
+                    console.log("Nova transação adicionada com sucesso!");
+                }
+
+                // Reset de campos (mesmo após a soma ou adição)
+                document.getElementById('codigo').value = '';
+                document.getElementById('unidades').value = '1';
+                document.getElementById('valor').value = '3.34';
+                inputData.valueAsDate = new Date(); 
+                
+            } catch (e) {
+                console.error("Erro ao processar transação:", e);
+                console.error("Erro ao processar transação. Verifique a conexão ou as regras do Firestore.");
+            }
+        }
+
+        window.editarTransacao = async function(id) {
+            const item = dadosTransacoes.find(t => t.id === id);
+            if (!item) return;
+
+            console.warn(`Tentativa de edição da transação do produto ${item.codigo} em ${item.data.split('-').reverse().join('/')}.`);
+
+            const currentUnidades = item.unidades;
+            const currentValor = item.valor;
+
+            const novasUnidadesStr = prompt(`Novas Unidades (atual: ${currentUnidades}):`, currentUnidades);
+            if (novasUnidadesStr === null) return; // Cancelado
+
+            const novoValorStr = prompt(`Novo Valor Unitário (atual: R$ ${currentValor.toFixed(2).replace('.', ',')}):`, currentValor);
+            if (novoValorStr === null) return; // Cancelado
+
+            const novasUnidades = parseInt(novasUnidadesStr);
+            const novoValor = parseFloat(novoValorStr.replace(',', '.')); 
+
+            if (isNaN(novasUnidades) || novasUnidades <= 0 || isNaN(novoValor) || novoValor <= 0) {
+                console.error("Valores inválidos. A edição foi cancelada.");
+                return;
+            }
+
+            try {
+                const docRef = doc(db, COLECAO_TRANSACOES, id);
+                await updateDoc(docRef, {
+                    unidades: novasUnidades,
+                    valor: novoValor,
+                    timestamp: serverTimestamp()
+                });
+                console.log("Transação atualizada com sucesso!");
+            } catch (e) {
+                console.error("Erro ao atualizar transação:", e);
+            }
+        }
+
+        window.deletarTransacao = async function(id) {
+            console.warn(`Tentativa de deletar a transação (ID: ${id}).`);
+            if (prompt(`Confirme a exclusão digitando o ID ${id}:`) === id) {
+                try {
+                    await deleteDoc(doc(db, COLECAO_TRANSACOES, id));
+                    console.log("Transação deletada com sucesso!");
+                } catch (e) {
+                    console.error("Erro ao deletar transação:", e);
+                }
+            } else {
+                console.log("Exclusão cancelada ou ID incorreto.");
+            }
+        }
+        
+        window.editarMetaUnidades = async function() {
+            const novaMetaStr = prompt("Digite a nova Meta de Unidades:", metaUnidades);
+            if (novaMetaStr) {
+                const valorNumerico = parseInt(novaMetaStr);
+                if (!isNaN(valorNumerico) && valorNumerico > 0) {
+                    await setDoc(doc(db, COLECAO_TRANSACOES, DOC_CONFIG), { metaUnidades: valorNumerico }, { merge: true });
+                    metaUnidades = valorNumerico; 
+                    atualizarDashboard(); 
+                } else {
+                    console.error("Insira um número válido e maior que zero.");
+                }
+            }
+        }
+        
+        window.editarDataInicioCampanha = async function() {
+            const dataPadrao = dataInicioCampanha;
+            const novaDataStr = prompt(`Digite a nova Data de Início da Campanha (YYYY-MM-DD):`, dataPadrao);
+            
+            if (novaDataStr) {
+                // Validação básica de formato de data YYYY-MM-DD
+                if (/^\d{4}-\d{2}-\d{2}$/.test(novaDataStr)) {
+                     try {
+                        await setDoc(doc(db, COLECAO_TRANSACOES, DOC_CONFIG), { dataInicio: novaDataStr }, { merge: true });
+                        dataInicioCampanha = novaDataStr;
+                        atualizarDashboard();
+                    } catch (error) {
+                        console.error("Erro ao salvar a data de início:", error);
+                    }
+                } else {
+                    console.error("Formato de data inválido. Use YYYY-MM-DD.");
+                }
+            }
+        }
+
+        // NOVO: Edita a data de fim da campanha
+        window.editarDataFimCampanha = async function() {
+            const dataPadrao = dataFimCampanha;
+            const novaDataStr = prompt(`Digite a nova Data de Fim da Campanha (YYYY-MM-DD):`, dataPadrao);
+            
+            if (novaDataStr) {
+                // Validação básica de formato de data YYYY-MM-DD
+                if (/^\d{4}-\d{2}-\d{2}$/.test(novaDataStr)) {
+                     try {
+                        await setDoc(doc(db, COLECAO_TRANSACOES, DOC_CONFIG), { dataFim: novaDataStr }, { merge: true });
+                        dataFimCampanha = novaDataStr;
+                        atualizarDashboard();
+                    } catch (error) {
+                        console.error("Erro ao salvar a data de fim:", error);
+                    }
+                } else {
+                    console.error("Formato de data inválido. Use YYYY-MM-DD.");
+                }
+            }
+        }
+
+        // --- 4. FUNÇÕES DE CÁLCULO E RENDERIZAÇÃO ---
+        
+        // Verifica se uma dada data (YYYY-MM-DD) é um feriado nacional fixo.
+        function eFeriado(dataStr) {
+            return FERIADOS.includes(dataStr);
+        }
+
+        // Calcula o número de dias úteis (Segunda a Sábado, excluindo feriados)
+        function calcularDiasUteis(dataInicio) {
+            if (!dataInicio) return 0;
+            
+            let inicio = new Date(dataInicio + 'T00:00:00'); 
+            let hoje = new Date();
+            hoje.setHours(0, 0, 0, 0);
+
+            if (inicio > hoje) {
+                return 0;
+            }
+
+            let diasUteis = 0;
+            let dataAtual = inicio;
+            
+            while (dataAtual <= hoje) {
+                const diaDaSemana = dataAtual.getDay(); // 0 = Domingo, 6 = Sábado
+                const dataStr = dataAtual.toISOString().substring(0, 10); // 'YYYY-MM-DD'
+
+                // Verifica se NÃO é Domingo (dia 0) E NÃO é Feriado
+                if (diaDaSemana !== 0 && !eFeriado(dataStr)) {
+                    diasUteis++;
+                }
+                
+                dataAtual.setDate(dataAtual.getDate() + 1);
+            }
+
+            return diasUteis;
+        }
+
+        // Calcula o número de dias úteis restantes (a partir de amanhã até o fim do prazo)
+        function calcularDiasUteisRestantes(dataFim) {
+            if (!dataFim) return 0;
+
+            let amanha = new Date();
+            amanha.setDate(amanha.getDate() + 1); 
+            amanha.setHours(0, 0, 0, 0);
+
+            let fim = new Date(dataFim + 'T00:00:00');
+            fim.setHours(0, 0, 0, 0);
+
+            if (amanha > fim) {
+                return 0;
+            }
+
+            let diasUteis = 0;
+            let dataAtual = amanha;
+            
+            while (dataAtual <= fim) {
+                const diaDaSemana = dataAtual.getDay(); // 0 = Domingo, 6 = Sábado
+                const dataStr = dataAtual.toISOString().substring(0, 10); // 'YYYY-MM-DD'
+
+                // Verifica se NÃO é Domingo (dia 0) E NÃO é Feriado
+                if (diaDaSemana !== 0 && !eFeriado(dataStr)) {
+                    diasUteis++;
+                }
+                
+                dataAtual.setDate(dataAtual.getDate() + 1);
+            }
+
+            return diasUteis;
+        }
+
+
+        function calcularTotalGeral() {
+            const total = dadosTransacoes.reduce((acc, item) => acc + (item.unidades * item.valor), 0);
+            totalGeralElemento.textContent = total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            return total;
+        }
+
+        function calcularMediaUnidadesPorDiaUtil(totalUnidades, diasUteis) {
+            let media = 0;
+            if (diasUteis > 0) {
+                media = totalUnidades / diasUteis;
+            }
+            mediaUnidadesDiaElemento.textContent = media.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+        
+        function calcularMetaDiariaRestante(totalUnidades, diasRestantes) {
+            const unidadesRestantes = Math.max(0, metaUnidades - totalUnidades);
+            let unidadesPorDia = 0;
+            
+            if (diasRestantes > 0) {
+                unidadesPorDia = unidadesRestantes / diasRestantes;
+            } else if (unidadesRestantes > 0) {
+                unidadesPorDia = unidadesRestantes; 
+            }
+
+            unidadesPorDiaRestanteElemento.textContent = unidadesPorDia.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+
+        function calcularProgresso(totalUnidades) {
+            totalUnidadesElemento.textContent = totalUnidades.toLocaleString('pt-BR');
+            metaUnidadesElemento.textContent = metaUnidades.toLocaleString('pt-BR'); 
+
+            const progresso = (totalUnidades / metaUnidades) * 100;
+            const progressoClamped = Math.min(progresso, 100);
+            
+            barraPreenchidaElemento.style.width = `${progressoClamped}%`;
+            progressoPorcentagemElemento.textContent = `${Math.round(progresso)}%`;
+            
+            barraPreenchidaElemento.style.backgroundColor = (totalUnidades >= metaUnidades) ? '#198754' : '#0dcaf0';
+        }
+
+        function atualizarDashboard() {
+            const totalUnidades = dadosTransacoes.reduce((acc, item) => acc + item.unidades, 0);
+            calcularTotalGeral();
+            
+            // 1. Cálculo de Dias Úteis Passados
+            const diasUteisCampanha = calcularDiasUteis(dataInicioCampanha);
+            diasUteisCampanhaElemento.textContent = diasUteisCampanha.toLocaleString('pt-BR');
+            
+            // 2. Exibição da Data de Início
+            const dataFormatada = new Date(dataInicioCampanha + 'T00:00:00').toLocaleDateString('pt-BR');
+            dataInicioCampanhaElemento.textContent = dataFormatada;
+
+            // 3. Cálculo de Dias Úteis Restantes
+            const diasUteisRestantes = calcularDiasUteisRestantes(dataFimCampanha);
+            diasUteisRestantesElemento.textContent = diasUteisRestantes.toLocaleString('pt-BR');
+            
+            // 4. Exibição da Data de Fim
+            const dataFimFormatada = new Date(dataFimCampanha + 'T00:00:00').toLocaleDateString('pt-BR');
+            dataFimCampanhaElemento.textContent = dataFimFormatada;
+
+            // 5. Cálculo da Média Diária Necessária
+            calcularMetaDiariaRestante(totalUnidades, diasUteisRestantes);
+
+            // 6. Cálculo da Média Passada e Progresso
+            calcularProgresso(totalUnidades);
+            calcularMediaUnidadesPorDiaUtil(totalUnidades, diasUteisCampanha); 
+            
+            // 7. LÓGICA DO LEMBRETE DE FERIADOS (NOVO)
+            const dataLimite = new Date('2025-12-26T00:00:00');
+            const hoje = new Date();
+
+            if (hoje >= dataLimite) {
+                // Se for 26/12/2025 ou posterior, exibe o aviso
+                avisoFeriadosElemento.style.display = 'block';
+            } else {
+                // Caso contrário, mantém o aviso oculto
+                avisoFeriadosElemento.style.display = 'none';
+            }
+            
+            renderizarTabela();
+        }
+
+        function renderizarTabela() {
+            tabelaCorpo.innerHTML = '';
+            
+            dadosTransacoes.forEach(item => {
+                const totalVenda = item.unidades * item.valor;
+                const dataFormatada = item.data ? item.data.split('-').reverse().join('/') : 'N/A';
+                
+                const linha = tabelaCorpo.insertRow();
+                linha.innerHTML = `
+                    <td>${dataFormatada}</td>
+                    <td>${item.codigo}</td>
+                    <td>${item.unidades.toLocaleString('pt-BR')}</td>
+                    <td>${item.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                    <td>${totalVenda.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                    <td>
+                        <button class="btn-editar" onclick="editarTransacao('${item.id}')">Editar</button>
+                        <button class="btn-deletar" onclick="deletarTransacao('${item.id}')">Deletar</button>
+                    </td>
+                `;
+            });
+        }
+        
+        // --- 5. INICIALIZAÇÃO DE LISTENERS ---
+        
+        // Vincula a função de adicionar/somar transação ao formulário
+        formTransacao.addEventListener('submit', window.adicionarTransacao);
+
+        // Define a data atual como padrão no campo de data ao carregar a página
+        inputData.valueAsDate = new Date();
+
+    </script>
+</body>
+</html>
